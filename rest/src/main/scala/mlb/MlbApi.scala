@@ -28,11 +28,13 @@ object MlbApi extends ZIOAppDefault {
   }.withDefaultErrorResponse
 
   val endpoints: App[ZConnectionPool] = Http.collectZIO[Request] {
+    /*
     case Method.GET -> Root / "init" =>
         for {
           _ <- initializeDatabase
           res: Response = Response.text("Database initialized")
         } yield res
+    */
     case Method.GET -> Root / "game" / "latest" / homeTeam / awayTeam =>
       for {
         game: Option[Game] <- latest(HomeTeam(homeTeam), AwayTeam(awayTeam))
@@ -60,14 +62,12 @@ object MlbApi extends ZIOAppDefault {
       conn <- create
       source <- ZIO.succeed(
         CSVReader
-          .open(new File("mlb_elo_latest.csv"))
+          .open(new File("mlb_elo.csv"))
       )
       stream <- ZStream
         .fromIterator[Seq[String]](source.iterator)
-        // Skip the first row and empty rows
         .filter(row => row.nonEmpty && row(0) != "date")
         .map[Game](row =>
-          // Create a game from a row
           Game(
             GameDate(LocalDate.parse(row(0))),
             SeasonYear(row(1).toInt),
@@ -75,14 +75,16 @@ object MlbApi extends ZIOAppDefault {
             AwayTeam(row(5)),
             HomeScore(row(24).toIntOption.getOrElse(-1)),
             AwayScore(row(25).toIntOption.getOrElse(-1)),
-            EloRating(row(6).toDouble, row(8).toDouble, row(10).toDouble),
-            EloRating(row(7).toDouble, row(9).toDouble, row(11).toDouble)
+            EloRating(row(6).toDoubleOption.getOrElse(-1), row(8).toDoubleOption.getOrElse(-1), row(10).toDoubleOption.getOrElse(-1)),
+            EloRating(row(7).toDoubleOption.getOrElse(-1), row(9).toDoubleOption.getOrElse(-1), row(11).toDoubleOption.getOrElse(-1))
           )
         )
         .grouped(1000)
         // Insert 1000 rows at a time to the database
         .foreach(chunk => insertRows(chunk.toList))
       _ <- ZIO.succeed(source.close())
+      // print the number of rows inserted
+      _ <- count.flatMap(c => ZIO.succeed(println(s"Inserted $c rows")))
       res <- ZIO.succeed(conn)
     } yield res
     _ <- Server.serve[ZConnectionPool](static ++ endpoints)
@@ -144,23 +146,6 @@ object DataService {
       sql"CREATE TABLE IF NOT EXISTS games(date DATE NOT NULL, season_year INT NOT NULL, playoff_round INT, home_team VARCHAR(3), away_team VARCHAR(3), home_score INT, away_score INT, elo1_pre DOUBLE PRECISION NOT NULL, elo2_pre DOUBLE PRECISION NOT NULL ,elo_prob1 DOUBLE PRECISION NOT NULL ,elo_prob2 DOUBLE PRECISION NOT NULL, elo1_post DOUBLE PRECISION NOT NULL, elo2_post DOUBLE PRECISION NOT NULL )"
     )
   }
-
-  def initializeDatabase: ZIO[ZConnectionPool, Throwable, Unit] = for {
-      _ <- create *> insertRows
-    } yield ()
-
-
-
-
-  val insertRows: ZIO[ZConnectionPool, Throwable, UpdateResult] = {
-    val rows: List[Game.Row] = games.map(_.toRow)
-    transaction {
-      insert(
-        sql"INSERT INTO games(date, season_year, playoff_round, home_team, away_team)".values[Game.Row](rows)
-      )
-    }
-  }
-
   // Should be implemented to replace the `val insertRows` example above. Replace `Any` by the proper case class.
   def insertRows(
       games: List[Game]
@@ -168,7 +153,7 @@ object DataService {
     val rows: List[Game.Row] = games.map(_.toRow)
     transaction {
       insert(
-        sql"INSERT INTO games(date, season_year, home_team, away_team, home_score, away_score, home_elo, away_elo, home_prob_elo, away_prob_elo)"
+        sql"INSERT INTO games(date, season_year, home_team, away_team, home_score, away_score, elo1_pre,elo2_pre,elo_prob1, elo_prob2,elo1_post ,elo2_post)"
           .values[Game.Row](rows)
       )
     }
