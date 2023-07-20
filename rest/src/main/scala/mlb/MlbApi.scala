@@ -37,7 +37,7 @@ object MlbApi extends ZIOAppDefault {
     */
     case Method.GET -> Root / "game" / "latest" / homeTeam / awayTeam =>
       for {
-        game: Option[Game] <- latest(HomeTeam(homeTeam), AwayTeam(awayTeam))
+        game: Option[Game] <- latest(homeTeam, awayTeam)
         res: Response = latestGameResponse(game)
       } yield res
     case Method.GET -> Root / "game" / "predict" / homeTeam / awayTeam =>
@@ -50,7 +50,7 @@ object MlbApi extends ZIOAppDefault {
       } yield res
      case Method.GET -> Root / "games" / "history" / homeTeam =>
       for {
-        games: List[Game] <- history(HomeTeam(homeTeam))
+        games: List[Game] <- history(homeTeam)
         res: Response = historyResponse(games)
       } yield res
     case _ =>
@@ -115,6 +115,8 @@ object ApiService {
       case None => Response.text("No game found in historical data").withStatus(Status.NotFound)
   }
 
+  
+
   def historyResponse(games: List[Game]): Response = {
      games match {
     case Nil =>
@@ -143,7 +145,7 @@ object DataService {
 
   val create: ZIO[ZConnectionPool, Throwable, Unit] = transaction {
     execute(
-      sql"CREATE TABLE IF NOT EXISTS games(date DATE NOT NULL, season_year INT NOT NULL, playoff_round INT, home_team VARCHAR(3), away_team VARCHAR(3), home_score INT, away_score INT, elo1_pre DOUBLE PRECISION NOT NULL, elo2_pre DOUBLE PRECISION NOT NULL ,elo_prob1 DOUBLE PRECISION NOT NULL ,elo_prob2 DOUBLE PRECISION NOT NULL, elo1_post DOUBLE PRECISION NOT NULL, elo2_post DOUBLE PRECISION NOT NULL )"
+      sql"CREATE TABLE IF NOT EXISTS games(date DATE NOT NULL, season_year INT NOT NULL, home_team VARCHAR(3), away_team VARCHAR(3), home_score INT, away_score INT, elo1_pre DOUBLE PRECISION NOT NULL, elo2_pre DOUBLE PRECISION NOT NULL ,elo_prob1 DOUBLE PRECISION NOT NULL ,elo_prob2 DOUBLE PRECISION NOT NULL, elo1_post DOUBLE PRECISION NOT NULL, elo2_post DOUBLE PRECISION NOT NULL )"
     )
   }
   // Should be implemented to replace the `val insertRows` example above. Replace `Any` by the proper case class.
@@ -165,22 +167,20 @@ object DataService {
     )
   }
 
-  def latest(homeTeam: HomeTeam, awayTeam: AwayTeam): ZIO[ZConnectionPool, Throwable, Option[Game]] = {
+  def latest(homeTeam: String, awayTeam: String): ZIO[ZConnectionPool, Throwable, Option[Game]] = {
     transaction {
       selectOne(
-        sql"SELECT date, season_year, playoff_round, home_team, away_team FROM games WHERE home_team = ${HomeTeam.unapply(homeTeam)} AND away_team = ${AwayTeam.unapply(awayTeam)} ORDER BY date DESC LIMIT 1".as[Game]
+        sql"SELECT * FROM games WHERE home_team = ${homeTeam} AND away_team = ${awayTeam} ORDER BY date DESC LIMIT 1".as[Game]
       )
     }
   }
 
-  def history(homeTeam: HomeTeam): ZIO[ZConnectionPool, Throwable, List[Game]] = transaction {
-    selectAll(
-      sql"""
-        SELECT home_team, away_team, home_score, away_score, date
-        FROM games
-        WHERE home_team = ${HomeTeam.unapply(homeTeam)} OR away_team = ${HomeTeam.unapply(homeTeam)}
-        ORDER BY date DESC
-      """.as[Game]
-    ).map(_.toList)
+  def history(homeTeam: String): ZIO[ZConnectionPool, Throwable, List[Game]] = {
+    transaction {
+      selectAll(
+        sql"SELECT * FROM games WHERE home_team = ${homeTeam}"
+          .as[Game]
+      ).map(_.toList)
+    }
   }
 }
