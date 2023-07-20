@@ -21,6 +21,38 @@ object HomeTeams {
   implicit val homeTeamDecoder: JsonDecoder[HomeTeam] = JsonDecoder.string
 }
 
+object HomeScores {
+
+  opaque type HomeScore = Int
+
+  object HomeScore {
+
+    def apply(value : Int): HomeScore = value
+
+    def unapply(homeScore : HomeScore): Int = homeScore
+  }
+
+  given CanEqual[HomeScore,HomeScore] = CanEqual.derived
+  implicit val homeTeamEncoder: JsonEncoder[HomeScore] = JsonEncoder.int
+  implicit val homeTeamDecoder: JsonDecoder[HomeScore] = JsonDecoder.int
+}
+
+object AwayScores {
+
+  opaque type AwayScore = Int
+
+  object AwayScore {
+
+    def apply(value : Int): AwayScore = value
+
+    def unapply(homeScore : AwayScore): Int = homeScore
+  }
+
+  given CanEqual[AwayScore,AwayScore] = CanEqual.derived
+  implicit val homeTeamEncoder: JsonEncoder[AwayScore] = JsonEncoder.int
+  implicit val homeTeamDecoder: JsonDecoder[AwayScore] = JsonDecoder.int
+}
+
 object AwayTeams {
 
   opaque type AwayTeam = String
@@ -90,57 +122,95 @@ object PlayoffRounds {
   implicit val playoffRoundEncoder: JsonEncoder[PlayoffRound] = JsonEncoder.int
   implicit val playoffRoundDEncoder: JsonDecoder[PlayoffRound] = JsonDecoder.int
 }
+object EloRating {
+  case class Elo(elo_pre: Double, elo_prob: Double, elo_post: Double)
+
+  def apply(elo_pre: Double, elo_prob: Double, elo_post: Double): Elo =
+    Elo(elo_pre, elo_prob, elo_post)
+
+  def safe(elo_pre: Double, elo_prob: Double, elo_post: Double): Option[Elo] =
+    if (elo_prob >= 0.0 && elo_prob <= 1.0) {
+      Some(Elo(elo_pre, elo_prob, elo_post))
+    } else {
+      None
+    }
+
+   def unapply(elo: Elo): Option[(Double, Double, Double)] = Some((elo.elo_pre, elo.elo_prob, elo.elo_post))
+
+
+  implicit val eloEncoder: JsonEncoder[Elo] = DeriveJsonEncoder.gen[Elo]
+  implicit val eloDecoder: JsonDecoder[Elo] = DeriveJsonDecoder.gen[Elo]
+}
 
 import GameDates.*
 import PlayoffRounds.*
 import SeasonYears.*
 import HomeTeams.*
 import AwayTeams.*
+import EloRating.*
 
 final case class Game(
     date: GameDate,
     season: SeasonYear,
     playoffRound: Option[PlayoffRound],
     homeTeam: HomeTeam,
-    awayTeam: AwayTeam
+    awayTeam: AwayTeam,
+    elo_home : Elo,
+    elo_away: Elo
 )
 
 object Game {
-
   given CanEqual[Game, Game] = CanEqual.derived
   implicit val gameEncoder: JsonEncoder[Game] = DeriveJsonEncoder.gen[Game]
   implicit val gameDecoder: JsonDecoder[Game] = DeriveJsonDecoder.gen[Game]
 
-  def unapply(game: Game): (GameDate, SeasonYear, Option[PlayoffRound], HomeTeam, AwayTeam) =
-    (game.date, game.season, game.playoffRound, game.homeTeam, game.awayTeam)
+  // Updated unapply method to include elo_home and elo_away fields
+  def unapply(game: Game): (GameDate, SeasonYear, Option[PlayoffRound], HomeTeam, AwayTeam, EloRating.Elo, EloRating.Elo) =
+    (game.date, game.season, game.playoffRound, game.homeTeam, game.awayTeam, game.elo_home, game.elo_away)
 
   // a custom decoder from a tuple
-  type Row = (String, Int, Option[Int], String, String)
+  type Row = (String, Int, Option[Int], String, String, Double, Double, Double, Double, Double, Double)
 
-  extension (g:Game)
+  extension (g: Game)
     def toRow: Row =
-      val (d, y, p, h, a) = Game.unapply(g)
+      val (d, y, p, h, a, elo_home, elo_away) = Game.unapply(g)
       (
         GameDate.unapply(d).toString,
         SeasonYear.unapply(y),
         p.map(PlayoffRound.unapply),
         HomeTeam.unapply(h),
-        AwayTeam.unapply(a)
+        AwayTeam.unapply(a),
+        elo_home.elo_pre,
+        elo_home.elo_prob,
+        elo_home.elo_post,
+        elo_away.elo_pre,
+        elo_away.elo_prob,
+        elo_away.elo_post
       )
 
+  // Updated jdbcDecoder to decode elo_home and elo_away fields
   implicit val jdbcDecoder: JdbcDecoder[Game] = JdbcDecoder[Row]().map[Game] { t =>
-      val (date, season, maybePlayoff, home, away) = t
-      Game(
-        GameDate(LocalDate.parse(date)),
-        SeasonYear(season),
-        maybePlayoff.map(PlayoffRound(_)),
-        HomeTeam(home),
-        AwayTeam(away)
-      )
-    }
+    val (date, season, maybePlayoff, home, away, elo_home_pre, elo_home_prob, elo_home_post, elo_away_pre, elo_away_prob, elo_away_post) = t
+    Game(
+      GameDate(LocalDate.parse(date)),
+      SeasonYear(season),
+      maybePlayoff.map(PlayoffRound(_)),
+      HomeTeam(home),
+      AwayTeam(away),
+      EloRating.Elo(elo_home_pre, elo_home_prob, elo_home_post),
+      EloRating.Elo(elo_away_pre, elo_away_prob, elo_away_post)
+    )
+  }
 }
 
 val games: List[Game] = List(
-  Game(GameDate(LocalDate.parse("2021-10-03")), SeasonYear(2023), None, HomeTeam("ATL"), AwayTeam("NYM")),
-  Game(GameDate(LocalDate.parse("2021-10-03")), SeasonYear(2023), None, HomeTeam("STL"), AwayTeam("CHC"))
+  Game(
+    GameDate(LocalDate.parse("2021-10-03")),
+    SeasonYear(2023),
+    None,
+    HomeTeam("ATL"),
+    AwayTeam("NYM"),
+    EloRating.Elo(2000.0, 0.7, 2100.0),
+    EloRating.Elo(2000.0, 0.7, 2100.0)
+  )
 )
