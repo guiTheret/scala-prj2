@@ -94,8 +94,7 @@ object MlbApi extends ZIOAppDefault {
     appLogic
       .provide(
         createZIOPoolConfig >>> connectionPool,
-        // Change the port here if needed (default is 8080, mine was already in use)
-        Server.defaultWithPort(5000)
+        Server.defaultWithPort(8080)
       )
 }
 
