@@ -101,7 +101,7 @@ object DataService {
 
   val create: ZIO[ZConnectionPool, Throwable, Unit] = transaction {
     execute(
-      sql"CREATE TABLE IF NOT EXISTS games(date DATE NOT NULL, season_year INT NOT NULL, playoff_round INT, home_team VARCHAR(3), away_team VARCHAR(3), home_score INT, away_score INT, elo1_pre DOUBLE PRECISION NOT NULL, elo2_pre DOUBLE PRECISION NOT NULL ,elo_prob1 DOUBLE PRECISION NOT NULL ,elo_prob2 DOUBLE PRECISION NOT NULL, elo1_post DOUBLE PRECISION NOT NULL, elo2_post DOUBLE PRECISION NOT NULL )"
+      sql"CREATE TABLE IF NOT EXISTS games(date DATE NOT NULL, season_year INT NOT NULL, playoff_round INT, home_team VARCHAR(3), away_team VARCHAR(3), home_score INT, away_score INT, elo1_pre DOUBLE PRECISION NOT NULL, elo1_prob DOUBLE PRECISION NOT NULL, elo1_post DOUBLE PRECISION NOT NULL, elo2_pre DOUBLE PRECISION NOT NULL  ,elo2_prob DOUBLE PRECISION NOT NULL,  elo2_post DOUBLE PRECISION NOT NULL )"
     )
   }
 
@@ -120,7 +120,7 @@ object DataService {
     val rows: List[Game.Row] = games.map(_.toRow)
     transaction {
       insert(
-        sql"INSERT INTO games(date, season_year, playoff_round, home_team, away_team)".values[Game.Row](rows)
+        sql"INSERT INTO games(date, season_year, playoff_round, home_team, away_team, home_score, away_score, elo1_pre, elo1_prob, elo1_post, elo2_pre, elo2_prob, elo2_post)".values[Game.Row](rows)
       )
     }
   }
@@ -137,7 +137,7 @@ object DataService {
   def latest(homeTeam: HomeTeam, awayTeam: AwayTeam): ZIO[ZConnectionPool, Throwable, Option[Game]] = {
     transaction {
       selectOne(
-        sql"SELECT date, season_year, playoff_round, home_team, away_team FROM games WHERE home_team = ${HomeTeam.unapply(homeTeam)} AND away_team = ${AwayTeam.unapply(awayTeam)} ORDER BY date DESC LIMIT 1".as[Game]
+        sql"SELECT * FROM games WHERE home_team = ${HomeTeam.unapply(homeTeam)} AND away_team = ${AwayTeam.unapply(awayTeam)} ORDER BY date DESC LIMIT 1".as[Game]
       )
     }
   }
