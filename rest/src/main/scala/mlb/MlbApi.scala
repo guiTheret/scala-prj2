@@ -3,15 +3,22 @@ package mlb
 import zio._
 import zio.jdbc._
 import zio.http._
+import com.github.tototoshi.csv._
+import java.io.File
+import zio.stream.ZStream
+import GameDates.*
+import SeasonYears.*
+import HomeTeams.*
+import AwayTeams.*
+import PlayoffRounds.*
 
 import java.sql.Date
+import java.time.LocalDate
 
 object MlbApi extends ZIOAppDefault {
 
   import DataService._
   import ApiService._
-  import HomeTeams._
-  import AwayTeams._
 
   val static: App[Any] = Http.collect[Request] {
     case Method.GET -> Root / "text" => Response.text("Hello MLB Fans!")
@@ -47,18 +54,44 @@ object MlbApi extends ZIOAppDefault {
   }.withDefaultErrorResponse
 
   val appLogic: ZIO[ZConnectionPool & Server, Throwable, Unit] = for {
-    _ <- create *> insertRows
+    _ <- for {
+      conn <- create
+      source <- ZIO.succeed(
+        CSVReader
+          .open(new File("mlb_elo_latest.csv"))
+      )
+      stream <- ZStream
+        .fromIterator[Seq[String]](source.iterator)
+        // Skip the first row and empty rows
+        .filter(row => row.nonEmpty && row(0) != "date")
+        .map[Game](row =>
+          // Create a game from a row
+          Game(
+            GameDate(LocalDate.parse(row(0))),
+            SeasonYear(row(1).toInt),
+            PlayoffRound(row(2).toInt),
+          )
+        )
+        .grouped(1000)
+        // Insert 1000 rows at a time to the database
+        .foreach(chunk => insertRows(chunk.toList))
+      _ <- ZIO.succeed(source.close())
+      res <- ZIO.succeed(conn)
+    } yield res
     _ <- Server.serve[ZConnectionPool](static ++ endpoints)
   } yield ()
 
-  override def run: ZIO[Any, Throwable, Unit] =
-    appLogic.provide(createZIOPoolConfig >>> connectionPool, Server.default)
+   override def run: ZIO[Any, Throwable, Unit] =
+    appLogic
+      .provide(
+        createZIOPoolConfig >>> connectionPool,
+        // Change the port here if needed (default is 8080, mine was already in use)
+        Server.defaultWithPort(5000)
+      )
 }
 
 object ApiService {
-
   import zio.json.EncoderOps
-  import Game._
 
   def countResponse(count: Option[Int]): Response = {
     count match
@@ -126,7 +159,17 @@ object DataService {
   }
 
   // Should be implemented to replace the `val insertRows` example above. Replace `Any` by the proper case class.
-  def insertRows(games: List[Any]): ZIO[ZConnectionPool, Throwable, UpdateResult] = ???
+  def insertRows(
+      games: List[Game]
+  ): ZIO[ZConnectionPool, Throwable, UpdateResult] = {
+    val rows: List[Game.Row] = games.map(_.toRow)
+    transaction {
+      insert(
+        sql"INSERT INTO games(date, season_year, home_team, away_team, home_score, away_score, home_elo, away_elo, home_prob_elo, away_prob_elo)"
+          .values[Game.Row](rows)
+      )
+    }
+  }
 
   val count: ZIO[ZConnectionPool, Throwable, Option[Int]] = transaction {
     selectOne(
