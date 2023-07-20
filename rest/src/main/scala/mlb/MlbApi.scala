@@ -10,7 +10,9 @@ import GameDates.*
 import SeasonYears.*
 import HomeTeams.*
 import AwayTeams.*
-import PlayoffRounds.*
+import HomeScores.*
+import AwayScores.*
+
 
 import java.sql.Date
 import java.time.LocalDate
@@ -69,7 +71,12 @@ object MlbApi extends ZIOAppDefault {
           Game(
             GameDate(LocalDate.parse(row(0))),
             SeasonYear(row(1).toInt),
-            PlayoffRound(row(2).toInt),
+            HomeTeam(row(4)),
+            AwayTeam(row(5)),
+            HomeScore(row(24).toIntOption.getOrElse(-1)),
+            AwayScore(row(25).toIntOption.getOrElse(-1)),
+            EloRating(row(6).toDouble, row(8).toDouble, row(10).toDouble),
+            EloRating(row(7).toDouble, row(9).toDouble, row(11).toDouble)
           )
         )
         .grouped(1000)
@@ -143,11 +150,7 @@ object DataService {
     } yield ()
 
 
-  import GameDates.*
-  import PlayoffRounds.*
-  import SeasonYears.*
-  import HomeTeams.*
-  import AwayTeams.*
+
 
   val insertRows: ZIO[ZConnectionPool, Throwable, UpdateResult] = {
     val rows: List[Game.Row] = games.map(_.toRow)
