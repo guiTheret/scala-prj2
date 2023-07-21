@@ -42,9 +42,9 @@ object MlbApi extends ZIOAppDefault {
       } yield res
     case Method.GET -> Root / "game" / "predict" / homeTeam / awayTeam =>
       for {
-        predi1: Option[Int] <- predict(homeTeam)
-        predi2: Option[Int] <- predict(awayTeam)
-        res: Response = predictionResponse(predi1,predi2)
+        predi1: Option[Double] <- predict(homeTeam)
+        predi2: Option[Double] <- predict(awayTeam)
+        res: Response = predictionResponse(homeTeam,predi1,awayTeam,predi2)
       } yield res
       // ZIO.succeed(Response.text(s"$homeTeam vs $awayTeam win probability: 0.0"))
     case Method.GET -> Root / "games" / "count" =>
@@ -119,14 +119,15 @@ object ApiService {
       case None => Response.text("No game found in historical data").withStatus(Status.NotFound)
   }
 
-  def predictionResponse(elo1 : Option[Int], elo2 : Option[Int]): Response = {
+  def predictionResponse(homeTeam : String, elo1 : Option[Double],awayTeam : String, elo2 : Option[Double]): Response = {
     println(elo1)
     println(elo2)
     (elo1, elo2) match {
     case (Some(elo1), Some(elo2)) => 
       if (elo1 >= 0 && elo2 >= 0) {
-      val expectedScoreTeam1 = 1.0 / (1.0 + math.pow(10.0, (elo2 - elo1) / 400.0))
-      Response.text(s"Probability of Team 1 winning against Team 2 : $expectedScoreTeam1 \n Team 1 : $elo1 pts \n Team 2 : $elo2 pts").withStatus(Status.Ok)
+      val expectedScoreTeam1 = (1.0 / (1.0 + math.pow(10.0, (elo2 - elo1) / 400.0))) * 100
+      val Team1Prob = BigDecimal.valueOf(expectedScoreTeam1).setScale(2, BigDecimal.RoundingMode.HALF_UP)
+      Response.text(s"Probability of $homeTeam winning against $awayTeam : $Team1Prob % \n Team 1 : $elo1 pts \n Team 2 : $elo2 pts").withStatus(Status.Ok)
       }
       else{
         Response.text("The last match of the teams does not have elo").withStatus(Status.NotFound)
@@ -175,7 +176,7 @@ object DataService {
     val rows: List[Game.Row] = games.map(_.toRow)
     transaction {
       insert(
-        sql"INSERT INTO games(date, season_year, home_team, away_team, home_score, away_score, elo1_pre,elo2_pre,elo_prob1, elo_prob2,elo1_post ,elo2_post)"
+        sql"INSERT INTO games(date, season_year, home_team, away_team, home_score, away_score, elo1_pre, elo_prob1, elo1_post, elo2_pre, elo_prob2, elo2_post)"
           .values[Game.Row](rows)
       )
     }
@@ -195,13 +196,37 @@ object DataService {
     }
   }
 
-  def predict(homeTeam: String): ZIO[ZConnectionPool, Throwable, Option[Int]] = {
+  def predict(homeTeam: String): ZIO[ZConnectionPool, Throwable, Option[Double]] = {
     transaction {
       selectOne(
-      sql"SELECT (CASE WHEN home_team = ${homeTeam} THEN elo1_post ELSE elo2_post END) FROM games WHERE ${homeTeam} IN  (home_team,away_team) ORDER BY date DESC LIMIT 1".as[Int]
+        sql"""
+          WITH subquery AS (
+              SELECT
+                  date,
+                  home_score,
+                  (CASE WHEN home_team = $homeTeam THEN elo1_post ELSE elo2_post END) AS elo_value,
+                  ROW_NUMBER() OVER (ORDER BY date DESC) AS row_num
+              FROM games
+              WHERE
+                  ($homeTeam IN (home_team, away_team))
+                  AND elo1_post IS NOT NULL
+                  AND elo2_post IS NOT NULL
+                  AND home_score IS NOT NULL
+                  AND (CASE WHEN home_team = $homeTeam THEN elo1_post ELSE elo2_post END) > 0
+                  AND date < '2021-05-29'
+          ) 
+          SELECT elo_value
+          FROM subquery
+          WHERE row_num = 1;
+          """
+          .as[Double]
       )
-    } 
-  }
+    }
+}
+
+
+
+
 
   def history(homeTeam: String): ZIO[ZConnectionPool, Throwable, List[Game]] = {
     transaction {
