@@ -34,6 +34,8 @@ The core data structure in the project is the `Game` case class. It combines var
 
 The `Game` class also provides a custom decoder to convert data between tuple representation and the `Game` object. This allows for seamless database operations using ZIO and ZIO-JDBC.
 
+![classdiagram](assets/ClassDiagram.jpg "classdiagram")
+
 ## REST API Endpoints
 
 The REST API backend exposes various endpoints to interact with the MLB data. The endpoints will include functionalities to:
@@ -66,8 +68,6 @@ Here's a short description for the endpoints:
    - Response: Returns JSON data containing a list of historical games played by the specified home team. If no historical games are found, a "Not Found" response is returned.
 
 ![endpoints](assets/SequenceDiagram.jpg "endpoints")
-
-![classdiagram](assets/ClassDiagram.jpg "classdiagram")
 
 The implementation includes error handling to handle cases where the required data is not available or the SQL queries encounter issues. For example, when attempting to retrieve the latest game data or make predictions without valid Elo ratings, appropriate error responses are returned.
 
