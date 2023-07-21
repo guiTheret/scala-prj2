@@ -122,7 +122,6 @@ object ApiService {
   def predictionResponse(elo1 : Option[Int], elo2 : Option[Int]): Response = {
     println(elo1)
     println(elo2)
-    println("test")
     (elo1, elo2) match {
     case (Some(elo1), Some(elo2)) => 
       if (elo1 >= 0 && elo2 >= 0) {
@@ -199,7 +198,7 @@ object DataService {
   def predict(homeTeam: String): ZIO[ZConnectionPool, Throwable, Option[Int]] = {
     transaction {
       selectOne(
-      sql"SELECT (CASE WHEN home_team = ${homeTeam} THEN elo1_post ELSE elo2_prob END) FROM games WHERE ${homeTeam} IN  (home_team,away_team) ORDER BY date DESC LIMIT 1".as[Int]
+      sql"SELECT (CASE WHEN home_team = ${homeTeam} THEN elo1_post ELSE elo2_post END) FROM games WHERE ${homeTeam} IN  (home_team,away_team) ORDER BY date DESC LIMIT 1".as[Int]
       )
     } 
   }
