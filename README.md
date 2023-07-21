@@ -65,7 +65,7 @@ Here's a short description for the endpoints:
    - Description: Retrieves the historical game data for a specific home team.
    - Response: Returns JSON data containing a list of historical games played by the specified home team. If no historical games are found, a "Not Found" response is returned.
 
-![endpoints](assets/SequenceDiagram.jpg)
+![endpoints](assets/SequenceDiagram.jpg "endpoints")
 
 The implementation includes error handling to handle cases where the required data is not available or the SQL queries encounter issues. For example, when attempting to retrieve the latest game data or make predictions without valid Elo ratings, appropriate error responses are returned.
 
