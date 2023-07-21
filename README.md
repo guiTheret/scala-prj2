@@ -1,136 +1,104 @@
-# Class Exam Instruction: Building a ZIO Application Backend
+# MLB API Backend using ZIO
 
-## Topic
+## Description
 
-Building a REST API using the "Major League Baseball Dataset" from [Kaggle](https://www.kaggle.com/datasets/saurabhshahane/major-league-baseball-dataset).
+This project involves building a REST API backend using the "Major League Baseball Dataset" from Kaggle. The dataset contains comprehensive data related to Major League Baseball (MLB) games, players, teams, and statistics, including game-by-game Elo ratings and forecasts dating back to 1871.
 
-### Dataset Description
-The "Major League Baseball Dataset" from Kaggle is a comprehensive collection of data related to Major League Baseball (MLB) games, players, teams, and statistics. The dataset contains information about game-by-game Elo ratings and forecasts back to 1871. You can visit the Kaggle page for a more detailed description of the dataset.
+## Requirements
 
-The dataset is available in CSV format: `mlb_elo.csv` contains all data: `mlb_elo_latest.csv` contains data for only the latest season. No need to register and download the files from Kaggle, they are available in Teams group's files tab.
+### Dataset and Technologies
 
-### Ratings Systems: ELO and MLB Predictions
-The dataset includes two ratings systems, ELO and MLB Predictions, which are used to evaluate teams' performance and predict game outcomes:
+- **Dataset**: The MLB dataset is available in CSV format, and two files are provided:
+  - mlb_elo.csv: Contains all data.
+  - mlb_elo_latest.csv: Contains data for the latest season.
+  The files are available in the Teams group's files tab; no need to register or download from Kaggle.
+- **Technologies**: Build the application backend using Scala 3 and leverage the power of ZIO. Use ZIO libraries such as zio-jdbc, zio-streams, zio-json, or zio-http to handle database operations, stream processing, JSON parsing, and HTTP applications.
+- 
+It appears that you have provided some Scala code that defines data structures for the Major League Baseball (MLB) game data using Scala's opaque types and case classes. The code defines various types, including `HomeTeam`, `HomeScore`, `AwayScore`, `AwayTeam`, `GameDate`, `SeasonYear`, and `EloRating`. Additionally, you have a `Game` case class that combines these types to represent an MLB game with Elo ratings for both the home and away teams.
 
-1. **ELO**: The ELO rating system is a method for calculating the relative skill levels of teams in two-player games, such as chess. In the context of MLB, the ELO rating system assigns a numerical rating to each team, which reflects their relative strength. The rating is updated based on game outcomes, with teams gaining or losing points depending on the result of the match.
+### Data Structures
 
-2. **MLB Predictions**: The MLB Predictions rating system utilizes various statistical models and algorithms to predict game outcomes. It takes into account factors such as team performance, player statistics, historical data, and other relevant factors to generate predictions for upcoming games.
+The project uses Scala's opaque types to create a type-safe representation of various MLB data attributes. The data structures include:
 
-## Expectations
-1. Design and implement data structures: You should design appropriate data structures to represent games, teams, players, and the two ratings systems (ELO and MLB Predictions). Consider using functional programming principles and immutable data structures when possible.
+- `HomeTeam`: Represents the home team of an MLB game.
+- `HomeScore`: Represents the score of the home team in an MLB game.
+- `AwayScore`: Represents the score of the away team in an MLB game.
+- `AwayTeam`: Represents the away team of an MLB game.
+- `GameDate`: Represents the date of an MLB game.
+- `SeasonYear`: Represents the year of an MLB season.
+- `EloRating`: Represents Elo ratings for MLB teams, including the pre-rating, probability, and post-rating.
 
-1. Use ZIO and related libraries: Build your application backend using Scala 3 and leverage the power of ZIO. Utilize libraries such as `zio-jdbc`, `zio-streams`, `zio-json`, or `zio-http` to handle database operations, stream processing, JSON parsing, and HTTP application, respectively.
+### Game Data Representation
 
-1. Database initialization at startup: Implement a mechanism to initialize the H2 database engine at application startup. You can use ZIO for managing the initialization process and setting up the required database schema. To process CSV, you can use the [tototoshi/scala-csv](https://github.com/tototoshi/scala-csv) library.
+The core data structure in the project is the `Game` case class. It combines various MLB data attributes to represent a single game. Each `Game` object contains information about the date, season, home team, away team, home score, away score, and Elo ratings for both teams.
 
-1. Dedicated endpoint for database initialization: Alternatively create a dedicated endpoint in your REST API that triggers the database initialization process. This endpoint should be used to initialize the database and ensure it is ready for use.
+The `Game` class also provides a custom decoder to convert data between tuple representation and the `Game` object. This allows for seamless database operations using ZIO and ZIO-JDBC.
 
-1. Endpoints for accessing game history and making predictions: Implement additional endpoints that allow users to query and retrieve game history and make predictions for future games. These endpoints should be designed to provide relevant information and facilitate interaction with the MLB dataset. Be creative and explain your motivation in your project README file.
+## REST API Endpoints
 
-1. Git repository and documentation quality: Set up a Git repository to manage your application's source code. Ensure that your repository is well-organized, contains appropriate commits, and has a clear README file. Document your code, including class and method-level comments, explaining the purpose and functionality of each component.
+The REST API backend exposes various endpoints to interact with the MLB data. The endpoints will include functionalities to:
 
-1. Implement tests: Write test cases to validate the functionality of your application. Consider using frameworks like ScalaTest or ZIO Test to write unit tests that cover critical components of your codebase.
+1. Retrieve game history, including past game data, scores, and Elo ratings.
+2. Make predictions for future games based on Elo ratings and historical data.
+3. Optionally, provide an endpoint to trigger the initialization process for the H2 database engine and setup required database schema.
+4. 
 
-1. Consider functional properties: Wherever applicable, emphasize functional programming principles such as immutability, referential transparency, and composability. Use appropriate abstractions and design patterns to enhance code modularity and maintainability.
+Here's a short description for the endpoints:
 
-## Additional Requirements
+1. **Endpoint: /game/latest/{homeTeam}/{awayTeam}**
+   - Method: GET
+   - Description: Retrieves the latest game data for a specific home team and away team.
+   - Response: Returns JSON data containing the details of the latest game, including the date, season, home team, away team, home score, away score, and Elo ratings for both teams. If no game is found, a "Not Found" response is returned.
 
-1. Group Size: Form groups of up to 4 students. You are encouraged to collaborate and discuss ideas within your group but ensure that each member actively contributes to the project.
+2. **Endpoint: /game/predict/{homeTeam}**
+   - Method: GET
+   - Description: Predicts the win probability for a specific home team in its upcoming game based on the latest Elo rating.
+   - Response: Returns the probability of the specified home team winning against its next opponent, along with the Elo ratings of both teams. If the Elo ratings are not available or valid, a "Not Found" response is returned.
 
-1. Due Date: The project is expected to be completed within one week after the class. Submit your project by the specified due date and time. Late submissions may incur penalties unless prior arrangements have been made with the instructor.
+3. **Endpoint: /games/count**
+   - Method: GET
+   - Description: Retrieves the count of games available in the historical data.
+   - Response: Returns the count of games as plain text. If no games are found, a "Not Found" response is returned.
 
-1. Language: Use English for code, comments and documentation.
+4. **Endpoint: /games/history/{homeTeam}**
+   - Method: GET
+   - Description: Retrieves the historical game data for a specific home team.
+   - Response: Returns JSON data containing a list of historical games played by the specified home team. If no historical games are found, a "Not Found" response is returned.
 
-## Deliverables
+![endpoints](my-app/diagrams/act-diagram-app.PNG "act-diagram-app")
 
-1. Scala 3 code implementing the ZIO application, adhering to the given requirements and expectations.
+The implementation includes error handling to handle cases where the required data is not available or the SQL queries encounter issues. For example, when attempting to retrieve the latest game data or make predictions without valid Elo ratings, appropriate error responses are returned.
 
-1. Git repository containing your code with appropriate commits and a README file providing instructions on how to run and test your application and the decisions made (libraries, data structure(s), algorithm and its performance, ...).
+The provided description outlines the functionalities of the API endpoints, and it can be further expanded in the README.md file to include details about the input parameters and response formats for each endpoint. Additionally, you may want to provide information on how to run the API, the required dependencies, and any specific configurations needed to set up the application.
 
-1. Documentation explaining the purpose, functionality, and usage of your application, along with any external libraries used.
+If you have additional details or specifications to add to the README.md file, feel free to include them to provide comprehensive documentation for your MLB API.
 
-## Grading
+## Testing and Functional Properties
 
-Your solution will be graded based on the following criteria, with equal distribution of the number of points on **criteria 1 to 5**:
+To ensure the reliability and correctness of the application, the project will incorporate unit tests using testing frameworks such as ScalaTest or ZIO Test. The emphasis will be on functional programming principles, including immutability, referential transparency, and composability, to enhance code modularity and maintainability.
 
-1. Correctness and functionality of the application implementation.
 
-1. Quality the data model and adherence to functional programming principles.
+### Design and Implementation
 
-1. Effective usage of ZIO, including ecosystem libraries.
+- **Data Structures**: Design appropriate data structures to represent games, teams, players, and the two ratings systems (ELO and MLB Predictions). Prefer functional programming principles and immutable data structures where possible.
+- **Database Initialization**: Implement a mechanism to initialize the H2 database engine at application startup. Use ZIO for managing the initialization process and setting up the required database schema. To process CSV, you can use the tototoshi/scala-csv library.
+- **Database Initialization Endpoint**: Optionally, create a dedicated endpoint in your REST API to trigger the database initialization process.
+- **Endpoints**: Implement additional endpoints to allow users to query and retrieve game history and make predictions for future games using the MLB dataset. Be creative and explain your motivation in your project README file.
+- **Testing**: Write test cases to validate the functionality of your application. Consider using frameworks like ScalaTest or ZIO Test to write unit tests that cover critical components of your codebase.
+- **Functional Properties**: Emphasize functional programming principles such as immutability, referential transparency, and composability where applicable. Use appropriate abstractions and design patterns to enhance code modularity and maintainability.
 
-1. Testing completeness and effectiveness, covering various scenarios.
+### Deliverables
 
-1. Quality and clarity of code organization and documentation, including the README file.
+- Provide Scala 3 code implementing the ZIO application, adhering to the given requirements and expectations.
+- Set up a Git repository to manage your application's source code. Ensure that your repository is well-organized, contains appropriate commits, and has a clear README file.
+- Document your code, including class and method-level comments, explaining the purpose and functionality of each component.
 
-1. Collaboration within the group and active participation of each member.
+## Build Configuration
 
-1. Timely submission of the project by the specified due date.
-
-## Additional Information
-
-Certainly! Here's a skeleton code structure for a Scala 3 application backend using ZIO, `zio-jdbc`, `zio-http`, and the H2 database:
-
-```scala
-package mlb
-
-import zio._
-import zio.jdbc._
-import zio.http._
-
-object MlbApi extends ZIOAppDefault {
-
-  val createZIOPoolConfig: ULayer[ZConnectionPoolConfig] =
-    ZLayer.succeed(ZConnectionPoolConfig.default)
-
-  val properties: Map[String, String] = Map(
-    "user" -> "postgres",
-    "password" -> "postgres"
-  )
-
-  val connectionPool : ZLayer[ZConnectionPoolConfig, Throwable, ZConnectionPool] =
-    ZConnectionPool.h2mem(
-      database = "testdb",
-      props = properties
-    )
-
-  val create: ZIO[ZConnectionPool, Throwable, Unit] = transaction {
-    execute(
-      sql"CREATE TABLE IF NOT EXISTS ..."
-    )
-  }
-
-  val insertRows: ZIO[ZConnectionPool, Throwable, UpdateResult] = transaction {
-    insert(
-      sql"INSERT INTO ...".values((value1, value2, value2))
-    )
-  }
-
-  val endpoints: App[Any] =
-    Http
-      .collect[Request] {
-        case Method.GET -> Root / "init" => ???
-        case Method.GET -> Root / "games" => ???
-        case Method.GET -> Root / "predict" / "game" / gameId => ???
-      }
-      .withDefaultErrorResponse
-
-  val app: ZIO[ZConnectionPool & Server, Throwable, Unit] = for {
-    conn <- create *> insertRows
-    _ <- Server.serve(endpoints)
-  } yield ()
-
-  override def run: ZIO[Any, Throwable, Unit] =
-    app.provide(createZIOPoolConfig >>> connectionPool, Server.default)
-}
-```
-
-This skeleton code provides a basic structure for your application. You can start by fill in the placeholders (`???`) with the appropriate code to handle database operations, retrieve game history, make predictions, and handle other functionalities as per your requirements. Feel free to make any modification to this skeleton. Take your time discovering the ZIO ecosystem by reading the official document.
-
-Here's an example of the associated `build.sbt` file for the skeleton code provided above:
+To build and run your project, use the provided build.sbt file. Adjust the dependencies' versions if needed, and make sure to place it in the root directory of your project.*
 
 ```scala
-val scala3Version = "3.3.0"
+val scala3Version = "3.2.2"
 val h2Version = "2.1.214"
 val scalaCsvVersion = "1.3.10"
 val zioVersion = "2.0.6"
@@ -143,9 +111,7 @@ lazy val root = (project in file("."))
   .settings(
     name := "mlb-api",
     version := "1.0",
-
     scalaVersion := scala3Version,
-
     libraryDependencies ++= Seq(
       "com.h2database" % "h2" % h2Version,
       "dev.zio" %% "zio" % zioVersion,
@@ -156,42 +122,28 @@ lazy val root = (project in file("."))
       "dev.zio" %% "zio-http" % zioHtppVersion,
       "com.github.tototoshi" %% "scala-csv" % scalaCsvVersion,
     ).map(_ % Compile),
-    libraryDependencies ++= Seq(
+ libraryDependencies ++= Seq(
       "org.scalameta" %% "munit" % "0.7.29"
     ).map(_ % Test)
   )
 ```
 
-Make sure to place this `build.sbt` file in the root directory of your project. Adjust the dependencies' versions as necessary, and add any additional dependencies required for your project.
+## Skeleton Code
 
-This is a basic `build.sbt` configuration. Depending on your project's requirements, you may need to add more settings, such as resolvers, additional libraries, plugins or configurations for code formatting, coverage, and more.
-
-In the example above, `insertRows` is very simple and takes no parameter. You may want to make it a function use a stream to batch insert your data at initialization time.
+The provided skeleton code is a basic structure for your application. It includes ZIO, ZIO libraries, and an example of initializing the H2 database, reading the CSV, and processing game data. You will need to fill in the placeholders (???) with the appropriate code to handle database operations, retrieve game history, make predictions, and handle other functionalities as per your requirements.
 
 ```scala
-for {
-  conn <- create
-  source <- ZIO.succeed(CSVReader.open(???))
-  stream <- ZStream
-    .fromIterator[Seq[String]](source.iterator)
-    .map[???](???)
-    .grouped(???)
-    .foreach(chunk => insertRows(???))
-  _ <- ZIO.succeed(source.close())
-  res <- select
-} yield res
-```
+// rest/src/main/scala/mlb/MlbApi.scala
 
-Finally, it is encouraged to use [sbt-revolver](https://github.com/spray/sbt-revolver) in your workflow. This is a plugin for SBT enabling a super-fast development turnaround for your Scala applications. It supports the following features:
-* Starting and stopping your application in the background of your interactive SBT shell (in a forked JVM).
-* Triggered restart: automatically restart your application as soon as some of its sources have been changed.
+package mlb
 
-Add the following dependency to your `project/plugins.sbt`:
+import zio._
+import zio.jdbc._
+import zio.http._
+import com.github.tototoshi.csv._
+import java.io.File
+import zio.stream.ZStream
 
-```scala
-addSbtPlugin("io.spray" % "sbt-revolver" % "0.10.0")
-```
+// Import other classes and objects as needed
 
-You can then use `~reStart` to go into "triggered restart" mode. Your application starts up and SBT watches for changes in your source (or resource) files. If a change is detected SBT recompiles the required classes and sbt-revolver automatically restarts your application. When you press `<ENTER>` SBT leaves "triggered restart" and returns to the normal prompt keeping your application running.
-
-Good luck with your exam, and feel free to ask any further questions!
+object MlbApi
