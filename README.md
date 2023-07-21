@@ -67,6 +67,8 @@ Here's a short description for the endpoints:
 
 ![endpoints](assets/SequenceDiagram.jpg "endpoints")
 
+![classdiagram](assets/ClassDiagram.jpg "classdiagram")
+
 The implementation includes error handling to handle cases where the required data is not available or the SQL queries encounter issues. For example, when attempting to retrieve the latest game data or make predictions without valid Elo ratings, appropriate error responses are returned.
 
 The provided description outlines the functionalities of the API endpoints, and it can be further expanded in the README.md file to include details about the input parameters and response formats for each endpoint. Additionally, you may want to provide information on how to run the API, the required dependencies, and any specific configurations needed to set up the application.
